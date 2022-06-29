@@ -1,22 +1,23 @@
 pyenv-register
 ==============
 pyenv-register is a [pyenv](https://github.com/yyuu/pyenv) plugin
-to use system installed Python.
+to use existing python installations
 
-Installing versions of python `pyenv install` takes longer time
-than package management of system (like apt-get, yum).
+Installing versions of python with `pyenv install` usually takes longer than using system package management tools (like apt-get, yum, brew or spack); and there are other considerations.
 
-`pyenv-register` import system installed python to pyenv environment.
+`pyenv-register` imports already installed python to pyenv environment; it works by creating a virtual environment for that installation and pointing pyenv to it.
 
 Installation
 ------------
+
 ### Install as a pyenv plugin
 
-    $ git clone https://github.com/doloopwhile/pyenv-register.git $(pyenv root)/plugins/pyenv-register
+    $ git clone https://github.com/hell-pl/pyenv-register.git $(pyenv root)/plugins/pyenv-register
     $ exec "$SHELL"
 
 Usage
 -----
+
 ### Register python of package management system
 
     $ sudo apt-get install -y python3.3  # install by package management system
@@ -30,7 +31,7 @@ Usage
     * system (set by /home/xxxx/.pyenv/version)
       system-3.3.2
 
-A envrionment named `system-x.x.x` will be created.
+An environment named `system-x.x.x` will be created.
 The environment contains system installed libraries.
 
     $ sudo apt-get install -y python3-lxml

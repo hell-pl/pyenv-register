@@ -10,7 +10,7 @@
 #
 usage() {
   # We can remove the sed fallback once pyenv 0.4.0 is widely available.
-  pyenv-help register 2>/dev/null || sed -ne '/^#/!q;s/.//;s/.//;1,4d;p' < "$0"
+  pyenv-help register 2>/dev/null < "$0"
   [ -z "$1" ] || exit "$1"
 }
 
@@ -56,6 +56,7 @@ else:
   )
 fi
 
+VIRTUALENV_OPTIONS=("--system-site-packages")
 DEST_DIR="$PYENV_ROOT/versions/$NAME"
 echo "Register $PYTHON => $DEST_DIR"
 
@@ -64,36 +65,12 @@ if [ $FORCE -eq "0" ] && [ -e "$DEST_DIR" ]; then
   exit 1
 fi
 
-VIRTUALENV_OPTION="--system-site-packages"
-
-if "$PYTHON" -c 'import virtualenv' &> /dev/null; then
-  # Use installed virtualenv
-  "$PYTHON" -m virtualenv -p "$PYTHON" $VIRTUALENV_OPTION "$DEST_DIR" || {
-    exit 1
-  }
-else
-  # Virtualenv is not installed, download script
-  echo "virtualenv is not installed to $PYTHON"
-
-  TEMP_DIR=$(mktemp -d)
-  if [ $? -ne 0 ]; then
-    echo "pyenv: Failed to create temporary dir" >&2
-    exit 1
-  fi
-
-  VIRTUALENV_URL=https://pypi.python.org/packages/source/v/virtualenv/virtualenv-1.11.4.tar.gz
-  echo "Download $VIRTUALENV_URL"
-  cd "$TEMP_DIR"
-  wget -q "$VIRTUALENV_URL" -O virtualenv.tgz || {
-    echo "pyenv: Failed to download virtualenv" >&2
-    exit 1
-  }
-
-  tar xzf virtualenv.tgz --strip-components=1 || {
-    exit 1
-  }
-
-  "$PYTHON" virtualenv.py -p "$PYTHON" $VIRTUALENV_OPTION "$DEST_DIR" || {
+if ! "$PYTHON" -c 'import virtualenv' &> /dev/null; then
+  "$PYTHON" -m pip install --user virtualenv || {
     exit 1
   }
 fi
+
+"$PYTHON" -m virtualenv -p "$PYTHON" ${VIRTUALENV_OPTIONS[*]} "$DEST_DIR" || {
+  exit 1
+}
