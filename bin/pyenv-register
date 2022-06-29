@@ -1,49 +1,65 @@
 #!/usr/bin/env bash
-# Summary: Register a python exacutable in outside of pyenv
+# Summary: Register a python exacutable delivered outside of pyenv.
 #
-# Usage: pyenv register [-f|--force] <python-executable> [<name>]
+# Usage: pyenv register [options] <path to python executable> [<name>]
 #
-# <name>     A name of environment will be created in versions.
-#            If ommited, name is automatically defined.
+# <name>           A name of environment to create in versions.
+#                  If omitted, name is automatically defined.
 #
-# -f/--force Install even if the version appears to be installed already
+# Options:
+# -f, --force      Run even if the version appears to be installed already
+# -v, --verbose    Make the script verbose for debug purposes
+#
+# -m, --module venv
+#                  Use the venv module. [This is the default.]
+#
+# -m, --module virtualenv
+#                  Use the virtualenv module. Installs one if not installed.
 #
 usage() {
-  # We can remove the sed fallback once pyenv 0.4.0 is widely available.
-  pyenv-help register 2>/dev/null < "$0"
-  [ -z "$1" ] || exit "$1"
+    pyenv-help register 2> /dev/null < "$0"
+    exit 0
 }
 
-if [ $# -lt 1 ]; then
-  usage 1
-fi
-
-FORCE=0
-ARGS=()
+export force=0
+export verbose=0
+export venv_module="venv"
 
 while [ -n "$1" ]; do
-  case "$1" in
-    "-f" | "--force" )
-      FORCE=1
-      ;;
-    * )
-      ARGS=("${ARGS[@]}" "$1")
-      ;;
-  esac
-  shift
+    case "$1" in
+    "-f" | "--force")
+        force=1
+        ;;
+    "-v" | "--verbose")
+        verbose=1
+        ;;
+    "-m" | "--module")
+        if [[ ${2} == "virtualenv" ]]; then
+            venv_module="virtualenv"
+        fi
+        shift
+        ;;
+    *)
+        args+=("$1")
+        ;;
+    esac
+    shift
 done
 
-if [ ${#ARGS[@]} -gt 2 ]; then
-  usage 1
+if ((${#args[@]} < 1)) || ((${#args[@]} > 2)); then
+    usage
 fi
 
-PYTHON=${ARGS[0]}
+if ((verbose == 1)); then
+    set -x
+fi
 
-if [ ${#ARGS[@]} -eq 2 ]; then
-  NAME=${ARGS[1]}
-else
-  NAME=$(
-    "$PYTHON" -c '
+python="${args[0]}"
+env_name="${args[@]:1}"
+
+if [[ -z ${env_name} ]]; then
+    env_name=$(
+        "${python}" -c '
 from platform import *
 import sys
 imp = python_implementation().lower()
@@ -53,24 +69,30 @@ if imp == "cpython":
 else:
   print("system-" + imp + "-" + v)
 '
-  )
+    )
 fi
 
-VIRTUALENV_OPTIONS=("--system-site-packages")
-DEST_DIR="$PYENV_ROOT/versions/$NAME"
-echo "Register $PYTHON => $DEST_DIR"
+venv_options=("--system-site-packages" "--clear")
+dest_dir="$(pyenv root)/versions/${env_name}"
+echo "Registering ${python} => ${dest_dir}"
 
-if [ $FORCE -eq "0" ] && [ -e "$DEST_DIR" ]; then
-  echo "$DEST_DIR already exists. Use --force option to override." >&2
-  exit 1
-fi
-
-if ! "$PYTHON" -c 'import virtualenv' &> /dev/null; then
-  "$PYTHON" -m pip install --user virtualenv || {
+if [[ ! -x ${python} ]]; then
+    echo "the python instance at ${python} is not an executable."
     exit 1
-  }
 fi
 
-"$PYTHON" -m virtualenv -p "$PYTHON" ${VIRTUALENV_OPTIONS[*]} "$DEST_DIR" || {
-  exit 1
+if ((force = 0)) && [[ -e ${dest_dir} ]]; then
+    echo "${dest_dir} already exists. Use --force option to override." >&2
+    exit 1
+fi
+
+if [[ ${venv_module} == "virtualenv" ]]; then
+    if ! "${python}" -c 'import virtualenv' &> /dev/null; then
+        "${python}" -m pip install --user "virtualenv"
+    fi
+    venv_options+=("-p ${python}")
+fi
+
+"${python}" -m "${venv_module}" ${venv_options[*]} "${dest_dir}" || {
+    exit 1
 }
